@@ -1,76 +1,68 @@
 pipeline {
-    agent any 
+    agent none 
+
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'
         AWS_ACCOUNT_ID = '992382545251'
-        IMAGE_REPO_NAME = 'calculator-app'
-        IMAGE_TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID : 'build-' + env.BUILD_NUMBER}"
+        AWS_DEFAULT_REGION = 'us-east-1'
+        IMAGE_REPO_NAME = 'alon-repo'
         ECR_REGISTRY_URL = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+        IMAGE_TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID : 'build'}-${env.BUILD_NUMBER}"
         FULL_IMAGE_NAME = "${ECR_REGISTRY_URL}/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
     }
 
     stages {
-        stage('Build Image') {
+        
+        stage('Unit Tests') {
+            agent {
+                docker { image 'python:3.9-slim' }
+            }
             steps {
                 script {
-                    echo "Building Docker image..."
-                    sh "docker build -t ${IMAGE_REPO_NAME}:${IMAGE_TAG} ."
+                    echo "Running tests directly using pytest..."
+                    sh 'pip install -r requirements.txt'
+                    sh 'pip install pytest'
+                    sh 'python -m unittest discover -s tests -v'
                 }
             }
         }
 
-        stage('Test & Health Check') {
+        stage('Build and Push') {
+            agent any
             steps {
                 script {
-                    echo "Running tests inside the container..."
-                    // הרצת הטסטים בתוך קונטיינר זמני
-                    sh "docker run --rm ${IMAGE_REPO_NAME}:${IMAGE_TAG} python -m unittest discover -s tests -v"
-                }
-            }
-        }
+                    echo "Generating Dockerfile..."
+                    def dockerfileContent = """
+FROM python:3.9-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["python", "api.py"]
+""".stripIndent()
+                    writeFile file: 'Dockerfile', text: dockerfileContent
 
-        // שלב PR - ירוץ רק אם מדובר ב-Pull Request
-        stage('PR Verification') {
-            when {
-                changeRequest() 
-            }
-            steps {
-                echo "This is a PR. Extra verifications can go here."
-                // כאן אפשר להוסיף בדיקות לינטר או בדיקות אבטחה
-            }
-        }
+                    echo "Tests passed. Building Docker image..."
+                    sh "docker build -t ${FULL_IMAGE_NAME} ."
 
-        stage('Login & Push to ECR') {
-            steps {
-                // שימוש ב-withCredentials לביטחון (כמו שעשית)
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-creds',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    script {
-                        // 1. התחברות ל-ECR
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-creds',
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
                         sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
-                        
-                        // 2. תיוג מחדש לכתובת של ECR
-                        sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${FULL_IMAGE_NAME}"
-                        
-                        // 3. דחיפה
                         sh "docker push ${FULL_IMAGE_NAME}"
-                        
-                        echo "Image pushed successfully: ${FULL_IMAGE_NAME}"
                     }
                 }
             }
         }
     }
-    
-    // ניקוי בסוף הריצה כדי לחסוך מקום
+
     post {
         always {
-            sh "docker rmi ${IMAGE_REPO_NAME}:${IMAGE_TAG} || true"
-            sh "docker rmi ${FULL_IMAGE_NAME} || true"
+            node {
+                sh "docker rmi ${FULL_IMAGE_NAME} || true"
+            }
         }
     }
 }
