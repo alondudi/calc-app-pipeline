@@ -44,21 +44,14 @@ CMD ["python", "api.py"]
                     echo "Tests passed. Building Docker image..."
                     sh "docker build -t ${FULL_IMAGE_NAME} ."
 
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-creds',
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                    ]]) {
-                        sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
+                    echo "Pushing to ECR..."
+                    docker.withRegistry("https://${ECR_REGISTRY_URL}", "ecr:${AWS_DEFAULT_REGION}:aws-creds") {
                         sh "docker push ${FULL_IMAGE_NAME}"
                     }
                 }
             }
-            
             post {
                 always {
-                    // אין צורך ב-node, הוא משתמש ב-agent של השלב הזה
                     sh "docker rmi ${FULL_IMAGE_NAME} || true"
                 }
             }
