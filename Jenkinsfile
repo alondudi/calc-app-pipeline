@@ -55,13 +55,12 @@ CMD ["python", "api.py"]
                     }
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            node {
-                sh "docker rmi ${FULL_IMAGE_NAME} || true"
+            
+            post {
+                always {
+                    // אין צורך ב-node, הוא משתמש ב-agent של השלב הזה
+                    sh "docker rmi ${FULL_IMAGE_NAME} || true"
+                }
             }
         }
     }
