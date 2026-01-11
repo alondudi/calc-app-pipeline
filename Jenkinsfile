@@ -9,8 +9,8 @@ pipeline {
         IMAGE_TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID : (env.BRANCH_NAME == 'main' ? 'prod' : 'build')}-${env.BUILD_NUMBER}"
         FULL_IMAGE_NAME = "${ECR_REGISTRY_URL}/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
         PROD_EC2_IP = '98.94.21.244' 
-        PROD_SSH_ID = 'ssh-prod' // ה-ID של ה-SSH Key שהגדרת בג'נקינס
-        APP_PORT = '5000' 
+        PROD_SSH_ID = 'ssh-prod' 
+        APP_PORT = '5000'
     }
 
     stages {
@@ -26,7 +26,6 @@ pipeline {
                 }
             }
         }
-
         stage('Build and Push') {
             when { anyOf { branch 'main'; changeRequest() } }
             agent any
@@ -50,24 +49,25 @@ CMD ["python", "api.py"]
                     }
                 }
             }
+            post {
+                always {
+                    sh "docker rmi ${FULL_IMAGE_NAME} || true"
+                }
+            }
         }
         stage('Deploy to Prod EC2') {
             when { branch 'main' }
-            
             agent { docker { image 'alpine:latest' } } 
             
             steps {
                 script {
                     echo "Preparing to deploy to ${PROD_EC2_IP}..."
-                    
                     sh 'apk add --no-cache openssh-client'
 
-                    sshagent(credentials: [ssh-prod]) {
-                        
+                    sshagent(credentials: [PROD_SSH_ID]) {
                         sh """
                             ssh -o StrictHostKeyChecking=no ubuntu@${PROD_EC2_IP} "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY_URL}"
                         """
-                        
                         sh "ssh -o StrictHostKeyChecking=no ubuntu@${PROD_EC2_IP} 'docker pull ${FULL_IMAGE_NAME}'"
                         
                         sh """
@@ -84,12 +84,11 @@ CMD ["python", "api.py"]
 
         stage('Health Verification') {
             when { branch 'main' }
-            agent { docker { image 'curlimages/curl' } } 
+            agent { docker { image 'curlimages/curl' } }
             
             steps {
                 script {
                     echo "Verifying service health on http://${PROD_EC2_IP}..."
-                    
                     sh """
                         for i in 1 2 3 4 5; do
                             if curl -f http://${PROD_EC2_IP}/health; then
@@ -104,14 +103,6 @@ CMD ["python", "api.py"]
                     """
                 }
             }
-        }
-    }
-    
-    post {
-        always {
-             node {
-                 sh "docker rmi ${FULL_IMAGE_NAME} || true"
-             }
         }
     }
 }
