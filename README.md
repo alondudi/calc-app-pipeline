@@ -2,13 +2,6 @@
 
 This project implements a complete **CI/CD Pipeline** for a Calculator application. It showcases modern DevOps practices, including automated testing, containerization, and continuous integration.
 
-## 📋 Table of Contents
-* [Overview](#overview)
-* [Tech Stack](#tech-stack)
-* [Pipeline Architecture](#pipeline-architecture)
-* [Getting Started](#getting-started)
-* [Project Structure](#project-structure)
-
 ---
 
 ## 🔍 Overview
