@@ -1,4 +1,4 @@
-# Calculator App (Example for CI/CD Exam)
+# Calculator App (Example for CI/CD )
 
 Pure-Python calculator logic + small stateful CalculatorApp + healthcheck API.
 
