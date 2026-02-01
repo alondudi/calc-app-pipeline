@@ -56,16 +56,4 @@ The build process is managed via the pipeline configuration, executing the follo
 
 ---
 
-## 📂 Project Structure
 
-```text
-calc-app-pipeline/
-├── .github/workflows/      # CI/CD configurations (if using Actions)
-├── app/                    # Application source code
-│   ├── main.py             # Main application logic
-│   └── requirements.txt    # Dependency list
-├── tests/                  # Automation tests
-│   └── test_calc.py        # Unit tests for calculation logic
-├── Dockerfile              # Docker image definition
-├── Jenkinsfile             # Jenkins Pipeline-as-Code definition
-└── README.md               # Project documentation
