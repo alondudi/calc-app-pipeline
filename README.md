@@ -42,3 +42,30 @@ To test the application on your local machine:
    ```bash
    git clone [https://github.com/alondudi/calc-app-pipeline.git](https://github.com/alondudi/calc-app-pipeline.git)
    cd calc-app-pipeline
+   ## 🏗 Build & Pipeline Stages
+
+The build process is managed via the pipeline configuration, executing the following steps:
+
+* **Stage 1: Checkout** - Pulls the latest source code from the `main` branch.
+* **Stage 2: Build** - Compiles the application and prepares the environment.
+* **Stage 3: Unit Testing** - Runs automated logic tests (e.g., `pytest` or `npm test`) to ensure the calculator works correctly.
+* **Stage 4: Docker Build** - Creates a production-ready image using the `Dockerfile`.
+    * Command: `docker build -t alondudi/calc-app:${BUILD_NUMBER} .`
+* **Stage 5: Push to Registry** - Authenticates and pushes the image to Docker Hub.
+* **Stage 6: Cleanup** - Cleans up the workspace and removes dangling images to save disk space.
+
+---
+
+## 📂 Project Structure
+
+```text
+calc-app-pipeline/
+├── .github/workflows/      # CI/CD configurations (if using Actions)
+├── app/                    # Application source code
+│   ├── main.py             # Main application logic
+│   └── requirements.txt    # Dependency list
+├── tests/                  # Automation tests
+│   └── test_calc.py        # Unit tests for calculation logic
+├── Dockerfile              # Docker image definition
+├── Jenkinsfile             # Jenkins Pipeline-as-Code definition
+└── README.md               # Project documentation
